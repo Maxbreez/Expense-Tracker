@@ -1,7 +1,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>Petty Cash</title>
+<title>My Wallet</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%BE%3C/text%3E%3C/svg%3E" />
 <style>
   :root {
@@ -361,6 +361,13 @@
     .form-grid { grid-template-columns: 1fr; }
     .form-actions { display: grid; grid-template-columns: 1fr 1fr; }
   }
+  .field {
+    /* grid items default to min-width:auto, which lets a native control's
+       intrinsic width (date/number inputs especially) force its track wider
+       than the container instead of shrinking to fit — this is what was
+       throwing the date box out of alignment on narrow screens */
+    min-width: 0;
+  }
   .field label {
     display: block;
     font-size: 11px;
@@ -377,6 +384,9 @@
     color: var(--ink);
     border-radius: 8px;
     padding: 9px 10px;
+    /* native date/select controls vertically center against line-height —
+       the inherited 1.45 body value pushes their text off-center */
+    line-height: normal;
     font-size: 14px;
     font-family: inherit;
   }
@@ -621,7 +631,7 @@
 <div class="app">
   <header class="brand">
     <div>
-      <h1 class="serif">Petty Cash</h1>
+      <h1 class="serif">My Wallet</h1>
       <div class="tagline">a personal expense ledger</div>
     </div>
   </header>
@@ -1165,7 +1175,7 @@
         existing.category = category;
         existing.date = date;
       }
-      showToast("Expense updated");
+      showToast("✓ Expense updated successfully");
       endEdit();
     } else {
       state.expenses.push({
@@ -1176,7 +1186,7 @@
         date: date,
         createdAt: Date.now()
       });
-      showToast("Expense added");
+      showToast("✓ Expense added successfully");
       form.reset();
       dateInput.value = todayISO();
       amountInput.focus();
@@ -1294,7 +1304,7 @@
 
   function offerUndo(removedExpense) {
     pendingUndo = removedExpense;
-    toastMsg.textContent = "Deleted “" + truncate(removedExpense.description, 28) + "”";
+    toastMsg.textContent = "✓ Deleted “" + truncate(removedExpense.description, 28) + "”";
     toastUndo.classList.remove("is-hidden");
     toast.classList.add("show");
     clearTimeout(toastTimer);
@@ -1344,7 +1354,7 @@
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
       a.href = url;
-      a.download = "petty-cash-" + todayISO() + ".csv";
+      a.download = "my-wallet-" + todayISO() + ".csv";
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
