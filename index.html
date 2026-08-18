@@ -1,6 +1,8 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
 <title>Petty Cash</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A7%BE%3C/text%3E%3C/svg%3E" />
 <style>
   :root {
     color-scheme: light;
@@ -276,7 +278,7 @@
     background: var(--surface-2);
     overflow: hidden;
   }
-  .budget-bar-fill { height: 100%; border-radius: 3px; }
+  .budget-bar-fill { height: 100%; width: 0; border-radius: 3px; }
   .budget-bar-fill.good { background: var(--good); }
   .budget-bar-fill.warning { background: var(--warning); }
   .budget-bar-fill.critical { background: var(--critical); }
@@ -610,6 +612,10 @@
     clip: rect(0 0 0 0);
     white-space: nowrap;
   }
+
+  /* utility: JS toggles this instead of writing inline style="" attributes,
+     which keeps the page compatible with a strict style-src CSP */
+  .is-hidden { display: none !important; }
 </style>
 
 <div class="app">
@@ -658,10 +664,10 @@
           <span class="amt" id="budgetAmt">Not set</span>
           <span class="label" id="budgetLabel"></span>
         </div>
-        <div class="budget-bar-track"><div class="budget-bar-fill good" id="budgetFill" style="width:0%"></div></div>
+        <div class="budget-bar-track"><div class="budget-bar-fill good" id="budgetFill"></div></div>
       </div>
-      <form id="budgetForm" class="budget-set-form" style="display:none">
-        <input type="number" id="budgetInput" min="0" step="1" placeholder="e.g. 1200" inputmode="decimal" />
+      <form id="budgetForm" class="budget-set-form is-hidden">
+        <input type="number" id="budgetInput" min="0" max="100000000" step="1" placeholder="e.g. 1200" inputmode="decimal" />
         <button type="submit" class="btn-primary">Save</button>
       </form>
     </div>
@@ -678,13 +684,13 @@
     <form class="card form-card" id="expenseForm">
       <div class="form-title">
         <span id="formTitle">Add an expense</span>
-        <span class="edit-flag" id="editFlag" style="display:none">editing existing entry</span>
+        <span class="edit-flag is-hidden" id="editFlag">editing existing entry</span>
       </div>
       <div class="form-grid">
         <div class="field amount-field">
           <label for="amountInput">Amount</label>
           <span class="prefix">GH₵</span>
-          <input type="number" id="amountInput" min="0" step="0.01" placeholder="0.00" inputmode="decimal" required />
+          <input type="number" id="amountInput" min="0" max="100000000" step="0.01" placeholder="0.00" inputmode="decimal" required />
         </div>
         <div class="field">
           <label for="descInput">Description</label>
@@ -696,11 +702,11 @@
         </div>
         <div class="field">
           <label for="dateInput">Date</label>
-          <input type="date" id="dateInput" required />
+          <input type="date" id="dateInput" min="2000-01-01" max="2100-12-31" required />
         </div>
         <div class="field form-actions">
           <button type="submit" class="btn-primary" id="submitBtn">Add</button>
-          <button type="button" class="btn-secondary" id="cancelEditBtn" style="display:none">Cancel</button>
+          <button type="button" class="btn-secondary is-hidden" id="cancelEditBtn">Cancel</button>
         </div>
       </div>
     </form>
@@ -722,7 +728,7 @@
           <tbody id="ledgerBody"></tbody>
         </table>
       </div>
-      <div class="empty-state" id="emptyState" style="display:none">
+      <div class="empty-state is-hidden" id="emptyState">
         <div class="glyph">🧾</div>
         <div class="lead">No expenses here yet</div>
         <div>Add your first one using the form above.</div>
@@ -733,7 +739,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite">
   <span id="toastMsg"></span>
-  <button type="button" id="toastUndo" style="display:none">Undo</button>
+  <button type="button" id="toastUndo" class="is-hidden">Undo</button>
 </div>
 
 <script>
@@ -760,6 +766,76 @@
     return getComputedStyle(document.documentElement).getPropertyValue(c.varName).trim();
   }
 
+  // ---------- input sanitizing ----------
+  // Every value that reaches state, storage, or the DOM funnels through these,
+  // whether it came from the form, a tampered/hand-edited localStorage record,
+  // or a future import feature. Text is always rendered via textContent
+  // elsewhere (never innerHTML with user data), so this layer's job is data
+  // integrity — trimmed, bounded, correctly-typed values — not script-escaping.
+  var MAX_DESC_LEN = 80;
+  var MAX_AMOUNT = 100000000; // GH₵100,000,000 sanity ceiling
+  var MIN_YEAR = 2000;
+  var MAX_YEAR = 2100;
+  var DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  function cleanText(value, maxLen) {
+    if (typeof value !== "string") return "";
+    // strip ASCII control chars and zero-width/BOM characters, collapse whitespace, trim, cap length
+    var controlAndInvisible = new RegExp(
+      "[" + String.fromCharCode(0) + "-" + String.fromCharCode(31) +
+      String.fromCharCode(127) +
+      String.fromCharCode(8203) + "-" + String.fromCharCode(8205) +
+      String.fromCharCode(65279) + "]",
+      "g"
+    );
+    var cleaned = value
+      .replace(controlAndInvisible, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    return cleaned.slice(0, maxLen);
+  }
+
+  function cleanAmount(value) {
+    var n = typeof value === "number" ? value : parseFloat(value);
+    if (!isFinite(n) || n <= 0) return null;
+    n = Math.round(n * 100) / 100; // snap to cents
+    if (n > MAX_AMOUNT) return null;
+    return n;
+  }
+
+  function isValidCategory(id) {
+    return Object.prototype.hasOwnProperty.call(catById, id);
+  }
+
+  function cleanDate(value) {
+    if (typeof value === "string" && DATE_RE.test(value)) {
+      var d = new Date(value + "T00:00:00");
+      if (!isNaN(d.getTime()) && d.getFullYear() >= MIN_YEAR && d.getFullYear() <= MAX_YEAR) {
+        return value;
+      }
+    }
+    return null;
+  }
+
+  // Validates/coerces a raw expense object (e.g. loaded from localStorage,
+  // which a user or another script on the same origin can edit by hand).
+  // Returns null for anything that can't be made into a safe record.
+  function sanitizeExpense(raw) {
+    if (!raw || typeof raw !== "object") return null;
+    var amount = cleanAmount(raw.amount);
+    var description = cleanText(raw.description, MAX_DESC_LEN);
+    var date = cleanDate(raw.date);
+    if (amount === null || !description || !date) return null;
+    return {
+      id: typeof raw.id === "string" && raw.id ? raw.id : uid(),
+      amount: amount,
+      description: description,
+      category: isValidCategory(raw.category) ? raw.category : "other",
+      date: date,
+      createdAt: typeof raw.createdAt === "number" && isFinite(raw.createdAt) ? raw.createdAt : Date.now()
+    };
+  }
+
   // ---------- state ----------
   var state = loadState();
   var viewMonth = new Date();
@@ -775,7 +851,9 @@
       if (raw) {
         var parsed = JSON.parse(raw);
         if (parsed && Array.isArray(parsed.expenses)) {
-          return { expenses: parsed.expenses, budget: parsed.budget || 0 };
+          var cleanExpenses = parsed.expenses.map(sanitizeExpense).filter(function (e) { return e !== null; });
+          var cleanBudget = cleanAmount(parsed.budget);
+          return { expenses: cleanExpenses, budget: cleanBudget || 0 };
         }
       }
     } catch (e) {}
@@ -995,12 +1073,12 @@
     ledgerBody.innerHTML = "";
 
     if (!list.length) {
-      emptyState.style.display = "";
-      document.querySelector(".ledger-scroll").style.display = "none";
+      emptyState.classList.remove("is-hidden");
+      document.querySelector(".ledger-scroll").classList.add("is-hidden");
       return;
     }
-    emptyState.style.display = "none";
-    document.querySelector(".ledger-scroll").style.display = "";
+    emptyState.classList.add("is-hidden");
+    document.querySelector(".ledger-scroll").classList.remove("is-hidden");
 
     list.forEach(function (e) {
       var tr = document.createElement("tr");
@@ -1072,12 +1150,12 @@
 
   form.addEventListener("submit", function (ev) {
     ev.preventDefault();
-    var amount = parseFloat(amountInput.value);
-    if (!isFinite(amount) || amount <= 0) { amountInput.focus(); return; }
-    var description = descInput.value.trim();
+    var amount = cleanAmount(amountInput.value);
+    if (amount === null) { amountInput.focus(); return; }
+    var description = cleanText(descInput.value, MAX_DESC_LEN);
     if (!description) { descInput.focus(); return; }
-    var category = categoryInput.value;
-    var date = dateInput.value || todayISO();
+    var category = isValidCategory(categoryInput.value) ? categoryInput.value : "other";
+    var date = cleanDate(dateInput.value) || todayISO();
 
     if (editingId) {
       var existing = state.expenses.find(function (e) { return e.id === editingId; });
@@ -1125,9 +1203,9 @@
     categoryInput.value = e.category;
     dateInput.value = e.date;
     formTitle.textContent = "Edit expense";
-    editFlag.style.display = "";
+    editFlag.classList.remove("is-hidden");
     submitBtn.textContent = "Save changes";
-    cancelEditBtn.style.display = "";
+    cancelEditBtn.classList.remove("is-hidden");
     form.scrollIntoView({ behavior: "smooth", block: "center" });
     amountInput.focus();
     renderLedger();
@@ -1138,9 +1216,9 @@
     form.reset();
     dateInput.value = todayISO();
     formTitle.textContent = "Add an expense";
-    editFlag.style.display = "none";
+    editFlag.classList.add("is-hidden");
     submitBtn.textContent = "Add";
-    cancelEditBtn.style.display = "none";
+    cancelEditBtn.classList.add("is-hidden");
     renderLedger();
   }
 
@@ -1176,15 +1254,15 @@
   var budgetInput = document.getElementById("budgetInput");
 
   editBudgetBtn.addEventListener("click", function () {
-    var showingForm = budgetForm.style.display !== "none";
+    var showingForm = !budgetForm.classList.contains("is-hidden");
     if (showingForm) {
-      budgetForm.style.display = "none";
-      budgetDisplay.style.display = "";
+      budgetForm.classList.add("is-hidden");
+      budgetDisplay.classList.remove("is-hidden");
       editBudgetBtn.textContent = "edit";
     } else {
       budgetInput.value = state.budget || "";
-      budgetForm.style.display = "flex";
-      budgetDisplay.style.display = "none";
+      budgetForm.classList.remove("is-hidden");
+      budgetDisplay.classList.add("is-hidden");
       editBudgetBtn.textContent = "close";
       budgetInput.focus();
     }
@@ -1192,11 +1270,11 @@
 
   budgetForm.addEventListener("submit", function (ev) {
     ev.preventDefault();
-    var val = parseFloat(budgetInput.value);
-    state.budget = isFinite(val) && val > 0 ? val : 0;
+    var val = cleanAmount(budgetInput.value);
+    state.budget = val || 0;
     saveState();
-    budgetForm.style.display = "none";
-    budgetDisplay.style.display = "";
+    budgetForm.classList.add("is-hidden");
+    budgetDisplay.classList.remove("is-hidden");
     editBudgetBtn.textContent = "edit";
     render();
   });
@@ -1207,7 +1285,7 @@
   var toastUndo = document.getElementById("toastUndo");
 
   function showToast(msg) {
-    toastUndo.style.display = "none";
+    toastUndo.classList.add("is-hidden");
     toastMsg.textContent = msg;
     toast.classList.add("show");
     clearTimeout(toastTimer);
@@ -1217,7 +1295,7 @@
   function offerUndo(removedExpense) {
     pendingUndo = removedExpense;
     toastMsg.textContent = "Deleted “" + truncate(removedExpense.description, 28) + "”";
-    toastUndo.style.display = "";
+    toastUndo.classList.remove("is-hidden");
     toast.classList.add("show");
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () {
@@ -1251,7 +1329,12 @@
       });
     var csv = rows.map(function (r) {
       return r.map(function (cell) {
-        var s = String(cell).replace(/"/g, '""');
+        var s = String(cell);
+        // Neutralize CSV/formula injection: a leading =, +, -, @, tab, or CR
+        // makes Excel/Sheets treat the cell as a formula when the file is
+        // reopened there, so pad it with a leading apostrophe like a spreadsheet would.
+        if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+        s = s.replace(/"/g, '""');
         return /[",\n]/.test(s) ? '"' + s + '"' : s;
       }).join(",");
     }).join("\r\n");
