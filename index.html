@@ -89,6 +89,30 @@
     --cat-other: #e66767;
   }
 
+  /* Category color swatches as static classes — resolved by the CSS cascade
+     itself, the same reliable path every other color on this page uses.
+     (Previously these were read at runtime via getComputedStyle() and
+     written back as inline styles per element; that JS/CSSOM round-trip
+     could silently come back empty on some browsers, leaving dots with no
+     background at all — invisible against the light surface.) */
+  .catdot-housing { background: var(--cat-housing); }
+  .catdot-food { background: var(--cat-food); }
+  .catdot-transport { background: var(--cat-transport); }
+  .catdot-shopping { background: var(--cat-shopping); }
+  .catdot-entertainment { background: var(--cat-entertainment); }
+  .catdot-health { background: var(--cat-health); }
+  .catdot-utilities { background: var(--cat-utilities); }
+  .catdot-other { background: var(--cat-other); }
+
+  .catopt-housing { color: var(--cat-housing); }
+  .catopt-food { color: var(--cat-food); }
+  .catopt-transport { color: var(--cat-transport); }
+  .catopt-shopping { color: var(--cat-shopping); }
+  .catopt-entertainment { color: var(--cat-entertainment); }
+  .catopt-health { color: var(--cat-health); }
+  .catopt-utilities { color: var(--cat-utilities); }
+  .catopt-other { color: var(--cat-other); }
+
   * { box-sizing: border-box; }
   @media (prefers-reduced-motion: reduce) {
     * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
@@ -776,21 +800,21 @@
   var STORAGE_KEY = "petty-cash-v1";
 
   var CATEGORIES = [
-    { id: "housing", label: "Housing", varName: "--cat-housing" },
-    { id: "food", label: "Food & Dining", varName: "--cat-food" },
-    { id: "transport", label: "Transport", varName: "--cat-transport" },
-    { id: "shopping", label: "Shopping", varName: "--cat-shopping" },
-    { id: "entertainment", label: "Entertainment", varName: "--cat-entertainment" },
-    { id: "health", label: "Health", varName: "--cat-health" },
-    { id: "utilities", label: "Utilities", varName: "--cat-utilities" },
-    { id: "other", label: "Other", varName: "--cat-other" }
+    { id: "housing", label: "Housing" },
+    { id: "food", label: "Food & Dining" },
+    { id: "transport", label: "Transport" },
+    { id: "shopping", label: "Shopping" },
+    { id: "entertainment", label: "Entertainment" },
+    { id: "health", label: "Health" },
+    { id: "utilities", label: "Utilities" },
+    { id: "other", label: "Other" }
   ];
   var catById = {};
   CATEGORIES.forEach(function (c) { catById[c.id] = c; });
 
-  function catColor(id) {
-    var c = catById[id] || catById.other;
-    return getComputedStyle(document.documentElement).getPropertyValue(c.varName).trim();
+  // Falls back to "other" for an unrecognized id so a swatch class always resolves.
+  function catSlug(id) {
+    return (catById[id] || catById.other).id;
   }
 
   // ---------- input sanitizing ----------
@@ -916,14 +940,9 @@
     var opt = document.createElement("option");
     opt.value = c.id;
     opt.textContent = "● " + c.label;
+    opt.className = "catopt-" + c.id;
     categoryInput.appendChild(opt);
   });
-  function tintOptions() {
-    Array.prototype.forEach.call(categoryInput.options, function (opt) {
-      opt.style.color = catColor(opt.value);
-    });
-  }
-  tintOptions();
 
   // ---------- filter chips ----------
   var filterRow = document.getElementById("filterRow");
@@ -945,8 +964,7 @@
       chip.type = "button";
       chip.className = "chip" + (activeFilters.has(c.id) ? " active" : "");
       var dot = document.createElement("span");
-      dot.className = "dot";
-      dot.style.background = catColor(c.id);
+      dot.className = "dot catdot-" + c.id;
       chip.appendChild(dot);
       chip.appendChild(document.createTextNode(c.label));
       chip.addEventListener("click", function () {
@@ -1067,8 +1085,7 @@
       wrap.className = "cat-row";
 
       var dot = document.createElement("span");
-      dot.className = "dot";
-      dot.style.background = catColor(row.cat.id);
+      dot.className = "dot catdot-" + row.cat.id;
       wrap.appendChild(dot);
 
       var name = document.createElement("span");
@@ -1084,9 +1101,8 @@
       var track = document.createElement("div");
       track.className = "cat-bar-track";
       var fill = document.createElement("div");
-      fill.className = "cat-bar-fill";
+      fill.className = "cat-bar-fill catdot-" + row.cat.id;
       fill.style.width = pct.toFixed(1) + "%";
-      fill.style.background = catColor(row.cat.id);
       track.appendChild(fill);
       wrap.appendChild(track);
 
@@ -1127,8 +1143,7 @@
       var chip = document.createElement("span");
       chip.className = "cat-chip";
       var dot = document.createElement("span");
-      dot.className = "dot";
-      dot.style.background = catColor(e.category);
+      dot.className = "dot catdot-" + catSlug(e.category);
       chip.appendChild(dot);
       chip.appendChild(document.createTextNode(catById[e.category] ? catById[e.category].label : "Other"));
       tdCat.appendChild(chip);
