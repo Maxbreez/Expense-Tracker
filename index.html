@@ -6,21 +6,29 @@
 <style>
   :root {
     color-scheme: light;
-    --bg: #eef0ee;
-    --surface: #ffffff;
-    --surface-2: #e3e8e4;
-    --border: #cfd6d1;
-    --ink: #16241f;
-    --ink-secondary: #47554f;
-    --ink-muted: #75857e;
-    --accent: #24525c;
-    --accent-strong: #1a3e46;
-    --accent-soft: #dcecea;
-    --accent-ink: #ffffff;
-    --good: #0ca30c;
-    --warning: #b8790a;
-    --critical: #c62f2f;
-    --shadow: 0 1px 2px rgba(22, 36, 31, 0.06), 0 8px 24px rgba(22, 36, 31, 0.06);
+    /* "gold ink on vellum" — warm parchment ground, deep antique-gold accent */
+    --bg: #f2e9d3;
+    --surface: #fdf8ec;
+    --surface-2: #ecdfbe;
+    --border: #d9c592;
+    --ink: #221b10;
+    --ink-secondary: #5c4d31;
+    --ink-muted: #78683f;
+    --accent: #8a6a13;
+    --accent-strong: #6b5110;
+    --accent-soft: #f1e2af;
+    --accent-ink: #fdf8ec;
+    --good: #2f7d4f;
+    --warning: #a8621a;
+    --critical: #9c2b2b;
+    --shadow: 0 1px 2px rgba(34, 27, 16, 0.08), 0 8px 24px rgba(34, 27, 16, 0.08);
+
+    /* toast is a deliberately dark bubble regardless of page theme (like a
+       standard snackbar), so its own tokens don't flip with light/dark —
+       fixed here once rather than redeclared per theme */
+    --toast-bg: #1c150a;
+    --toast-ink: #f4ecd4;
+    --toast-accent: #e6c358;
 
     /* categorical — fixed order, never reassigned */
     --cat-housing: #2a78d6;
@@ -35,21 +43,22 @@
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
       color-scheme: dark;
-      --bg: #121916;
-      --surface: #1b2320;
-      --surface-2: #212b27;
-      --border: #313f38;
-      --ink: #ecf2ee;
-      --ink-secondary: #b7c4bd;
-      --ink-muted: #7e8d86;
-      --accent: #6fb8c0;
-      --accent-strong: #8fcbd1;
-      --accent-soft: #1e3a3d;
-      --accent-ink: #0d1a1a;
-      --good: #3fbf3f;
-      --warning: #e0a83d;
-      --critical: #e66767;
-      --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+      /* "gold on black" vault — near-black ground, bright metallic-gold accent */
+      --bg: #0b0a08;
+      --surface: #17130d;
+      --surface-2: #1f1911;
+      --border: #3c3018;
+      --ink: #f4ecd4;
+      --ink-secondary: #cdb98c;
+      --ink-muted: #8d7f5f;
+      --accent: #d9b24c;
+      --accent-strong: #ecc766;
+      --accent-soft: #2c2210;
+      --accent-ink: #19140a;
+      --good: #4caf6e;
+      --warning: #d98a3d;
+      --critical: #d1555a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4);
 
       --cat-housing: #3987e5;
       --cat-food: #d9752f;
@@ -63,21 +72,21 @@
   }
   :root[data-theme="dark"] {
     color-scheme: dark;
-    --bg: #121916;
-    --surface: #1b2320;
-    --surface-2: #212b27;
-    --border: #313f38;
-    --ink: #ecf2ee;
-    --ink-secondary: #b7c4bd;
-    --ink-muted: #7e8d86;
-    --accent: #6fb8c0;
-    --accent-strong: #8fcbd1;
-    --accent-soft: #1e3a3d;
-    --accent-ink: #0d1a1a;
-    --good: #3fbf3f;
-    --warning: #e0a83d;
-    --critical: #e66767;
-    --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px rgba(0, 0, 0, 0.35);
+    --bg: #0b0a08;
+    --surface: #17130d;
+    --surface-2: #1f1911;
+    --border: #3c3018;
+    --ink: #f4ecd4;
+    --ink-secondary: #cdb98c;
+    --ink-muted: #8d7f5f;
+    --accent: #d9b24c;
+    --accent-strong: #ecc766;
+    --accent-soft: #2c2210;
+    --accent-ink: #19140a;
+    --good: #4caf6e;
+    --warning: #d98a3d;
+    --critical: #d1555a;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 24px rgba(0, 0, 0, 0.4);
 
     --cat-housing: #3987e5;
     --cat-food: #d9752f;
@@ -609,8 +618,8 @@
     transform: translateX(-50%) translateY(0);
     max-width: calc(100vw - 32px);
     box-sizing: border-box;
-    background: var(--ink);
-    color: var(--bg);
+    background: var(--toast-bg);
+    color: var(--toast-ink);
     padding: 11px 14px;
     border-radius: 10px;
     font-size: 13px;
@@ -648,13 +657,11 @@
   .toast button {
     background: none;
     border: none;
-    color: var(--accent-strong);
+    color: var(--toast-accent);
     font-weight: 700;
     cursor: pointer;
     font-size: 13px;
   }
-  :root:not([data-theme="light"]) .toast button,
-  :root[data-theme="dark"] .toast button { color: var(--accent); }
 
   .visually-hidden {
     position: absolute;
